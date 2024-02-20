@@ -1,89 +1,99 @@
-#  Capturando dados
-arquivo_modelo = open('modelo_arquivo.txt', 'r')
-print('Abrindo arquivo')
-fornecedor = dict()
+import sys
+import csv
+import locale
+from datetime import datetime
 
-for linha in arquivo_modelo:
-    if linha[7] == '0':  # Header de arquivo
-        nome_empresa = linha[72:102]
-        print('Nome da empresa: ', nome_empresa)  # - Nome da Empresa
-        numero_inscricao_empresa = linha[18:32]
-        print('Número de inscrição da Empresa: ', numero_inscricao_empresa)  # - Número de Inscrição da Empresa formatado, exemplo: 00.000.000/0001-00
-        nome_banco = linha[102:132]
-        print('Nome do banco: ', nome_banco)  # - Nome do Banco
-    elif linha[7] == '1':  # Header de lote
-        nome_rua = linha[142:172]
-        print('Nome da rua: ', nome_rua)  # - Nome da Rua
-        numero_local = linha[172:177]
-        print('Número do local: ', numero_local)  # - Número do Local formatado, exemplo: 00000
-        nome_cidade = linha[192:212]
-        print('Nome da Cidade: ', nome_cidade)  # - Nome da Cidade
-        cep = linha[212:217]
-        print('CEP :', cep)  # - CEP formatado, exemplo: 00000-000
-        cep_complemento = linha[217:220]
-        print('Complemento CEP: ', cep_complemento)
-        sigla_estado = linha[220:222]
-        print('Sigla do Estado: ', sigla_estado)  # - Sigla do Estado
-        forma_lancamento = linha[11:13]
-        if forma_lancamento == '01':
-            forma_lancamento = 'Crédito em Conta Corrente'
-        elif forma_lancamento == '02':
-            forma_lancamento = 'Cheque Pagamento / Administrativo'
-        elif forma_lancamento == '03':
-            forma_lancamento = 'DOC/TED (1) (2)'
-        elif forma_lancamento == '04' and linha[9:11] == '30':
-            forma_lancamento = 'Cartão Salário'
-        elif forma_lancamento == '05':
-            forma_lancamento = 'Crédito em Conta Poupança'
-        elif forma_lancamento == '06':
-            forma_lancamento = 'Liberação de Títulos HSBC'
-        elif forma_lancamento == '07':
-            forma_lancamento = 'Emissão de Cheque Salário'
-        elif forma_lancamento == '08':
-            forma_lancamento = 'Liquidação de Parcelas de Cobrança Não Registrada'
-        elif forma_lancamento == '09':
-            forma_lancamento = 'Arrecadação de Tributos Federais'
-        elif forma_lancamento == '10':
-            forma_lancamento = 'OP à Disposição'
-        elif forma_lancamento == '11':
-            forma_lancamento = 'Pagamento de Contas e Tributos com Código de Barras'
-        elif forma_lancamento == '12':
-            forma_lancamento = 'Doc Mesma Titularidade'
-        elif forma_lancamento == '13':
-            forma_lancamento = 'Pagamentos de Guias'
-        elif forma_lancamento == '14':
-            forma_lancamento = 'Crédito em Conta Corrente Mesma Titularidade'
-        elif forma_lancamento == '16':
-            forma_lancamento = 'Tributo - DARF Normal'
-        elif forma_lancamento == '17':
-            forma_lancamento = 'Tributo - GPS (Guia da Previdência Social)'
-        elif forma_lancamento == '18':
-            forma_lancamento = 'Tributo - DARF Simples'
-        elif forma_lancamento == '19':
-            forma_lancamento = 'Tributo - IPTU - Prefeituras'
-        elif forma_lancamento == '20':
-            forma_lancamento = 'Pagamento com Autenticação'
-        elif forma_lancamento == '21':
-            forma_lancamento = 'Tributo - DARJ'
-        print('Forma de lançamento convertida para sua descrição: ', forma_lancamento)  # - Forma de Lançamento convertida para a sua descrição
-    elif linha[7] == '3':
-        nome_favorecido = linha[43:73]
-        print('Nome do Favorecido: ', nome_favorecido)  # - Nome do Favorecido
-        data_pagamento = linha[93:101]
-        print('Data de pagamento: ', data_pagamento)  # - Data de Pagamento formatada, exemplo: 07/06/2017 (dd/mm/aaaa)
-        fornecedor['nome_favorecido'] = nome_favorecido
-        fornecedor['data_pagamento_formatado'] = data_pagamento
-        valor_pagamento = linha[119:134]
-        print('Valor do pagamento: ', valor_pagamento)  # - Valor do Pagamento formatado, exemplo: R$ 1.000,00
-        fornecedor['valor_pagamento'] = valor_pagamento
-        numero_documento_empresa = linha[73:93]
-        print('Número do Documento Atribuído pela Empresa: ', numero_documento_empresa)  # - Número do Documento Atribuído pela Empresa
-        fornecedor['numero_documento_empresa'] = numero_documento_empresa
-numero_inscricao_empresa_formatado = (f'{numero_inscricao_empresa[:2]}.{numero_inscricao_empresa[2:5]}.{numero_inscricao_empresa[5:8]}/{numero_inscricao_empresa[8:12]}-{numero_inscricao_empresa[12:]}')
-numero_local_formatado = numero_local.strip().zfill(5)
-cep_formatado = (f'{cep}-{cep_complemento}')
+def formatar_valor(valor):
+    return locale.currency(float(valor) / 100, grouping=True)
 
+def formatar_data(data):
+    data_obj = datetime.strptime(data, '%d%m%Y')
+    return data_obj.strftime('%d/%m/%Y')
 
-arquivo_modelo.seek(0)
-arquivo_modelo.close()
+if len(sys.argv) != 3:
+    print("Uso: python nome_app.py <arquivo_entrada> <arquivo_saida>")
+    sys.exit(1)
 
+# Defina a localidade para o formato de moeda desejado
+locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
+
+arquivo_entrada = sys.argv[1]
+arquivo_saida = sys.argv[2]
+
+try:
+    with open(arquivo_entrada, 'r', encoding='utf-8') as arquivo_modelo, open(arquivo_saida, 'w', newline='', encoding='utf-8') as relatorio_csv:
+        fornecedor = dict()
+
+        csv_writer = csv.writer(relatorio_csv, delimiter=';')
+
+        header_empresa = ["Nome da Empresa", "Numero de Inscricao da Empresa", "Nome do Banco", "Nome da Rua", "Numero do Local", "Nome da Cidade", "CEP", "Sigla do Estado"]
+        header_favorecido = ["Nome do Favorecido", "Data de Pagamento", "Valor do Pagamento", "Numero do Documento Atribuido pela Empresa", "Forma de Lancamento"]
+
+        csv_writer.writerow(header_empresa)
+
+        for linha in arquivo_modelo:
+            if linha[7] == '0':  # Header de arquivo
+                nome_empresa = linha[72:102].strip()
+                numero_inscricao_empresa = linha[18:32]
+                nome_banco = linha[102:132].strip()
+
+                numero_inscricao_empresa_formatado = f'{numero_inscricao_empresa[:2]}.{numero_inscricao_empresa[2:5]}.{numero_inscricao_empresa[5:8]}/{numero_inscricao_empresa[8:12]}-{numero_inscricao_empresa[12:]}'
+
+            elif linha[7] == '1':  # Header de lote
+                nome_rua = linha[142:172].strip()
+                numero_local = linha[172:177]
+                nome_cidade = linha[192:212]
+                cep = linha[212:217]
+                cep_complemento = linha[217:220]
+                sigla_estado = linha[220:222]
+                forma_lancamento = linha[11:13]
+
+                formas_lancamento = {
+                    '01': 'Crédito em Conta Corrente',
+                    '02': 'Cheque Pagamento / Administrativo',
+                    '03': 'DOC/TED (1) (2)',
+                    '04': 'Cartão Salário' if linha[9:11] == '30' else '',
+                    '05': 'Crédito em Conta Poupança',
+                    '06': 'Liberação de Títulos HSBC',
+                    '07': 'Emissão de Cheque Salário',
+                    '08': 'Liquidação de Parcelas de Cobrança Não Registrada',
+                    '09': 'Arrecadação de Tributos Federais',
+                    '10': 'OP à Disposição',
+                    '11': 'Pagamento de Contas e Tributos com Código de Barras',
+                    '12': 'Doc Mesma Titularidade',
+                    '13': 'Pagamentos de Guias',
+                    '14': 'Crédito em Conta Corrente Mesma Titularidade',
+                    '16': 'Tributo - DARF Normal',
+                    '17': 'Tributo - GPS (Guia da Previdência Social)',
+                    '18': 'Tributo - DARF Simples',
+                    '19': 'Tributo - IPTU - Prefeituras',
+                    '20': 'Pagamento com Autenticação',
+                    '21': 'Tributo - DARJ'
+                }
+
+                forma_lancamento_descricao = formas_lancamento.get(forma_lancamento, '')
+
+                numero_local_formatado = numero_local.strip()
+                cep_formatado = f'{cep}-{cep_complemento}'
+
+                csv_writer.writerow([nome_empresa, numero_inscricao_empresa_formatado, nome_banco, nome_rua, numero_local_formatado, nome_cidade, cep_formatado, sigla_estado])
+                csv_writer.writerow(header_favorecido)
+                
+            elif linha[7] == '3':
+                nome_favorecido = linha[43:73].strip()
+                data_pagamento = linha[93:101]
+                valor_pagamento = linha[119:134]
+                numero_documento_empresa = linha[73:93].strip()
+
+                data_pagamento_obj = datetime.strptime(data_pagamento, '%d%m%Y')
+                data_pagamento_formatada = data_pagamento_obj.strftime('%d/%m/%Y')
+                valor_formatado = formatar_valor(valor_pagamento)
+
+                csv_writer.writerow([nome_favorecido, data_pagamento_formatada, valor_formatado, numero_documento_empresa, forma_lancamento_descricao])
+
+except FileNotFoundError:
+    print(f"Erro: O arquivo {arquivo_entrada} não foi encontrado.")
+except Exception as e:
+    print(f"Erro inesperado: {e}")
+
+print(f"Processamento concluído. Relatório gerado em {arquivo_saida}")
